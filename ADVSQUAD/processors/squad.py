@@ -17,7 +17,6 @@ import logging
 import os
 from functools import partial
 from multiprocessing import Pool, cpu_count
-
 import numpy as np
 from tqdm import tqdm
 
@@ -36,8 +35,6 @@ if is_torch_available():
 
 if is_tf_available():
     import tensorflow as tf
-
-logger = logging.get_logger(__name__)
 
 
 def whitespace_tokenize(text):
@@ -315,6 +312,9 @@ def squad_convert_example_to_features(
     return features
 
 
+def squad_convert_example_to_features_init(tokenizer_for_convert):
+    global tokenizer
+    tokenizer = tokenizer_for_convert
 
 
 def squad_convert_examples_to_features(
@@ -541,7 +541,7 @@ def squad_convert_examples_to_features(
         return features
 
 
-[DOCS]class SquadProcessor(DataProcessor):
+class SquadProcessor(DataProcessor):
     """
     Processor for the SQuAD data set. overridden by SquadV1Processor and SquadV2Processor, used by the version 1.1 and
     version 2.0 of SQuAD, respectively.
@@ -574,7 +574,7 @@ def squad_convert_examples_to_features(
             answers=answers,
         )
 
-[DOCS]    def get_examples_from_dataset(self, dataset, evaluate=False):
+    def get_examples_from_dataset(self, dataset, evaluate=False):
         """
         Creates a list of :class:`~transformers.data.processors.squad.SquadExample` using a TFDS dataset.
 
@@ -606,7 +606,7 @@ def squad_convert_examples_to_features(
         return examples
 
 
-[DOCS]    def get_train_examples(self, data_dir, filename=None):
+    def get_train_examples(self, data_dir, filename=None):
         """
         Returns the training examples from the data directory.
 
@@ -629,7 +629,7 @@ def squad_convert_examples_to_features(
         return self._create_examples(input_data, "train")
 
 
-[DOCS]    def get_dev_examples(self, data_dir, filename=None):
+    def get_dev_examples(self, data_dir, filename=None):
         """
         Returns the evaluation example from the data directory.
 
@@ -822,8 +822,6 @@ class SquadFeatures:
         self.end_position = end_position
         self.is_impossible = is_impossible
         self.qas_id = qas_id
-
-        self.encoding = encoding
 
 
 class SquadResult:

@@ -2,9 +2,8 @@
 
 function runexp {
 
-export GLUE_DIR=squad_data
+export SQUAD_DIR=squad_data
 export TASK_NAME=${1}
-
 custom=${2}   # Custom name
 mname=${3}    # Model name
 lr=${4}       # Learning rate for model parameters
@@ -34,7 +33,7 @@ if [ -z "${21}" ] ;then
     ch=0.9
 fi
 
-expname=${custom}-${mname}-${TASK_NAME}-sl${seqlen}-lr${lr}-bs${bsize}-ts${ts}-ws${ws}-wd${wd}-seed${seed}-beta${beta}-alpha${alpha}--cl${cl}-ch${ch}-alr${alr}-amag${amag}-anm${anorm}-as${asteps}-hdp${hdp}-adp${adp}-version${version}
+expname=${custom}-${mname}-sl${seqlen}-lr${lr}-bs${bsize}-ts${ts}-ws${ws}-wd${wd}-seed${seed}-beta${beta}-alpha${alpha}--cl${cl}-ch${ch}-alr${alr}-amag${amag}-anm${anorm}-as${asteps}-hdp${hdp}-adp${adp}-version${version}
 
 max=-1
 for file in ${expname}/checkpoint-*
@@ -70,10 +69,9 @@ port=$(($RANDOM + 1024))
 echo "Master port: ${port}"
 python -m torch.distributed.launch --nproc_per_node=1 --master_port ${port} ./run_squad.py \
   --model_name_or_path ${mname} \
-  --task_name $TASK_NAME \
   --do_train  \
   --do_eval \
-  --data_dir $GLUE_DIR \
+  --data_dir $SQUAD_DIR \
   --max_seq_length ${seqlen} \
   --per_device_train_batch_size ${bsize} \
   --learning_rate ${lr} \
@@ -103,8 +101,7 @@ function evalexp {
 #export NCCL_NET_GDR_READ=0
 #export NCCL_SHM_DISABLE=0
 
-export GLUE_DIR=squad_data
-export TASK_NAME="squad-full"
+export SQUAD_DIR=squad_data
 
 mname=${2}    # Model name
 custom=${1}   # Custom name
@@ -133,9 +130,8 @@ echo "Master port: ${port}"
 
 python -m torch.distributed.launch --nproc_per_node=1 --master_port ${port}  ./run_squad.py \
   --model_name_or_path ${mname} \
-  --task_name $TASK_NAME \
   --do_eval \
-  --data_dir $GLUE_DIR \
+  --data_dir $SQUAD_DIR \
   --max_seq_length ${seqlen} \
   --per_device_train_batch_size ${bsize} \
   --learning_rate 3e-5 \

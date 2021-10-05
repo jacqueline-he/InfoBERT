@@ -137,7 +137,6 @@ def main():
 
     config = AutoConfig.from_pretrained(
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
-        num_labels=num_labels,
         cache_dir=model_args.cache_dir,
         output_hidden_states=True,
         attention_probs_dropout_prob=training_args.attention_probs_dropout_prob,
@@ -146,6 +145,7 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
+        padding_side='right',
     )
     model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model_name_or_path,
