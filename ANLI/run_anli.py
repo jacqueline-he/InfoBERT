@@ -55,8 +55,8 @@ class ModelArguments:
     tokenizer_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"}
     )
-    cache_dir: Optional[str] = field(
-        default=None, metadata={"help": "Where do you want to store the pretrained models downloaded from s3"}
+    cache_dir: str = field(
+        default='/n/fs/nlp-jh70', metadata={"help": "Where do you want to store the pretrained models downloaded from s3"}
     )
     load: Optional[str] = field(
         default=None, metadata={"help": "the path to load pretrained models"}

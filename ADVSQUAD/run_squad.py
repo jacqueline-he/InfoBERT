@@ -57,8 +57,8 @@ class ModelArguments:
     tokenizer_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"}
     )
-    cache_dir: Optional[str] = field(
-        default=None, metadata={"help": "Where do you want to store the pretrained models downloaded from s3"}
+    cache_dir: str = field(
+        default='/n/fs/nlp-jh70', metadata={"help": "Where do you want to store the pretrained models downloaded from s3"}
     )
     load: Optional[str] = field(
         default=None, metadata={"help": "the path to load pretrained models"}
@@ -177,7 +177,7 @@ def main():
             mi_estimator = InfoNCE(config.hidden_size, config.hidden_size).to(training_args.device)
             mi_upper_estimator = CLUBv2(config.hidden_size, config.hidden_size, beta=model_args.beta).to(training_args.device)
             mi_upper_estimator.version = 2
-        elif model_args.version == 6:
+        elif model_args.version == 6: # default
             mi_estimator = InfoNCE(config.hidden_size, config.hidden_size).to(training_args.device)
             mi_upper_estimator = CLUBv2(config.hidden_size, config.hidden_size, beta=model_args.beta).to(training_args.device)
             mi_upper_estimator.version = 3
@@ -256,37 +256,7 @@ def main():
     if training_args.do_eval:
         logger.info("*** Evaluate ***")
 
-        # Loop to handle MNLI double evaluation (matched, mis-matched)
         eval_datasets = [eval_dataset]
-        # if data_args.task_name == "mnli":
-        #     mnli_mm_data_args = dataclasses.replace(data_args, task_name="mnli-mm")
-        #     eval_datasets.append(
-        #         GlueDataset(mnli_mm_data_args, tokenizer=tokenizer, mode="dev")
-        #     )
-        # if 'anli' in data_args.task_name:
-        #     eval_datasets.append(
-        #             GlueDataset(data_args, tokenizer=tokenizer, mode="test")
-        #     )
-
-        # if data_args.task_name == 'anli-full' or data_args.task_name == 'anli-part':
-        #     eval_tasks = ["anli-r1", "anli-r2", "anli-r3", "mnli", "mnli-mm", "snli",
-        #                   "mnli-bert-adv", "mnli-mm-bert-adv", "snli-bert-adv",
-        #                   "mnli-roberta-adv", "mnli-mm-roberta-adv", "snli-roberta-adv"]
-        #     for task in eval_tasks:
-        #         if "mnli" in task and 'adv' not in task:
-        #             task_data_dir = os.path.join(data_args.data_dir, "MNLI")
-        #         elif "snli" == task and 'adv' not in task:
-        #             task_data_dir = os.path.join(data_args.data_dir, "SNLI")
-        #         else:
-        #             task_data_dir = data_args.data_dir
-        #         task_data_args = dataclasses.replace(data_args, task_name=task, data_dir=task_data_dir)
-        #         eval_datasets.append(
-        #             GlueDataset(task_data_args, tokenizer=tokenizer, mode="dev")
-        #         )
-        #         if 'anli' in task:
-        #             eval_datasets.append(
-        #                 GlueDataset(task_data_args, tokenizer=tokenizer, mode="test")
-        #             )
 
         for eval_dataset in eval_datasets:
             trainer.compute_metrics = build_compute_metrics_fn(eval_dataset.args.task_name)
@@ -361,11 +331,6 @@ def main():
     if training_args.do_predict:
         logging.info("*** Test ***")
         test_datasets = [test_dataset]
-        if data_args.task_name == "mnli":
-            mnli_mm_data_args = dataclasses.replace(data_args, task_name="mnli-mm")
-            test_datasets.append(
-                GlueDataset(mnli_mm_data_args, tokenizer=tokenizer, mode="test", cache_dir=model_args.cache_dir)
-            )
 
         for test_dataset in test_datasets:
             predictions = trainer.predict(test_dataset=test_dataset).predictions
