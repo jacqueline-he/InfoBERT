@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Finetuning the library models for sequence classification on GLUE (Bert, XLM, XLNet, RoBERTa, Albert, XLM-RoBERTa)."""
+""" Finetuning the library models for question-answering on SQuAD (DistilBERT, Bert, XLM, XLNet)."""
 
 import dataclasses
 import logging
@@ -26,11 +26,17 @@ import numpy as np
 import torch
 
 from transformers import AutoConfig, AutoTokenizer, EvalPrediction
-from models.modeling_auto import AutoModelForSequenceClassification
+from models.modeling_auto import AutoModelForQuestionAnswering
 from MI_estimators import CLUB, CLUBv2, InfoNCE
 
-# from datasets.anli import GlueDataset, GlueDataTrainingArguments as DataTrainingArguments
-# from processors.anli import glue_output_modes, glue_tasks_num_labels, glue_compute_metrics
+from datasets.squad import SquadDataset, SquadDataTrainingArguments as DataTrainingArguments
+from processors.squad import SquadResult, SquadV1Processor, SquadV2Processor
+
+from transformers.data.metrics.squad_metrics import (
+    compute_predictions_log_probs,
+    compute_predictions_logits,
+    squad_evaluate,
+)
 
 from local_robust_trainer import Trainer
 from transformers import (
@@ -123,12 +129,6 @@ def main():
     # Set seed
     set_seed(training_args.seed)
 
-    try:
-        num_labels = glue_tasks_num_labels[data_args.task_name]
-        output_mode = glue_output_modes[data_args.task_name]
-    except KeyError:
-        raise ValueError("Task not found: %s" % (data_args.task_name))
-
     # Load pretrained model and tokenizer
     #
     # Distributed training:
@@ -138,7 +138,6 @@ def main():
     config = AutoConfig.from_pretrained(
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
         num_labels=num_labels,
-        finetuning_task=data_args.task_name,
         cache_dir=model_args.cache_dir,
         output_hidden_states=True,
         attention_probs_dropout_prob=training_args.attention_probs_dropout_prob,
@@ -148,7 +147,7 @@ def main():
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
     )
-    model = AutoModelForSequenceClassification.from_pretrained(
+    model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model_name_or_path,
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
         config=config,
@@ -187,28 +186,18 @@ def main():
 
     # Get datasets
     train_dataset = (
-        GlueDataset(data_args, tokenizer=tokenizer) if training_args.do_train else None
+        SquadDataset(data_args, tokenizer=tokenizer) if training_args.do_train else None
     )
     eval_dataset = (
-        GlueDataset(data_args, tokenizer=tokenizer, mode="dev")
+        SquadDataset(data_args, tokenizer=tokenizer, mode="dev")
         if training_args.do_eval
         else None
     )
     test_dataset = (
-        GlueDataset(data_args, tokenizer=tokenizer, mode="test")
+        SquadDataset(data_args, tokenizer=tokenizer, mode="test")
         if training_args.do_predict
         else None
     )
-
-    def build_compute_metrics_fn(task_name: str) -> Callable[[EvalPrediction], Dict]:
-        def compute_metrics_fn(p: EvalPrediction):
-            if output_mode == "classification":
-                preds = np.argmax(p.predictions, axis=1)
-            elif output_mode == "regression":
-                preds = np.squeeze(p.predictions)
-            return glue_compute_metrics(task_name, preds, p.label_ids)
-
-        return compute_metrics_fn
 
     if model_args.load is not None:
         print(model_args.load)
@@ -229,7 +218,7 @@ def main():
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        compute_metrics=build_compute_metrics_fn(data_args.task_name),
+        compute_metrics=squad_evaluate,
         mi_estimator=mi_estimator,
         mi_upper_estimator=mi_upper_estimator
     )
@@ -259,16 +248,16 @@ def main():
         eval_datasets = [eval_dataset]
 
         for eval_dataset in eval_datasets:
-            trainer.compute_metrics = build_compute_metrics_fn(eval_dataset.args.task_name)
+            trainer.compute_metrics = squad_evaluate
             eval_result = trainer.evaluate(eval_dataset=eval_dataset)
             # eval_result = trainer.evaluate_mi(eval_dataset=eval_dataset)
 
             output_eval_file = os.path.join(
-                training_args.output_dir, f"eval_results_{eval_dataset.args.task_name}-{eval_dataset.mode}.txt"
+                training_args.output_dir, f"eval_results_squad-{eval_dataset.mode}.txt"
             )
             if trainer.is_world_master():
                 with open(output_eval_file, "w") as writer:
-                    logger.info(f"***** Eval results {eval_dataset.args.task_name}-{eval_dataset.mode} *****")
+                    logger.info(f"***** Eval results squad-{eval_dataset.mode} *****")
                     for key, value in eval_result.items():
                         logger.info("  %s = %s", key, value)
                         writer.write("%s = %s\n" % (key, value))
@@ -281,10 +270,10 @@ def main():
                 if eval['eval_acc'] > best_eval['eval_acc']:
                     best_eval = eval
             output_eval_file = os.path.join(
-                training_args.output_dir, f"best_eval_results_{data_args.task_name}_.txt"
+                training_args.output_dir, f"best_eval_results_squad_.txt"
             )
             with open(output_eval_file, "w") as writer:
-                logger.info("***** Best Eval results {} *****".format(data_args.task_name))
+                logger.info("***** Best Eval results SQUAD *****")
                 for key, value in best_eval.items():
                     logger.info("  %s = %s", key, value)
                     writer.write("%s = %s\n" % (key, value))
@@ -294,39 +283,24 @@ def main():
             # re-evaluate the best parameters
             checkpoint = os.path.join(training_args.output_dir, f"checkpoint-{best_eval['step']}")
             # trainer.model.load_state_dict(torch.load(os.path.join(checkpoint, 'pytorch_model.bin')))
-            trainer.model = AutoModelForSequenceClassification.from_pretrained(checkpoint).to(training_args.device)
+            trainer.model = AutoModelForQuestionAnswering.from_pretrained(checkpoint).to(training_args.device)
             logger.info(f"successfully load from {checkpoint}")
 
             for eval_dataset in eval_datasets:
-                trainer.compute_metrics = build_compute_metrics_fn(eval_dataset.args.task_name)
+                trainer.compute_metrics = squad_evaluate
                 # eval_result = trainer.evaluate(eval_dataset=eval_dataset)
                 eval_result = trainer.evaluate(eval_dataset=eval_dataset)
 
                 output_eval_file = os.path.join(
-                    training_args.output_dir, f"best_eval_results_{eval_dataset.args.task_name}-{eval_dataset.mode}.txt"
+                    training_args.output_dir, f"best_eval_results_squad-{eval_dataset.mode}.txt"
                 )
                 if trainer.is_world_master():
                     with open(output_eval_file, "w") as writer:
-                        logger.info(f"***** Best Eval results {eval_dataset.args.task_name}--{eval_dataset.mode} *****")
+                        logger.info(f"***** Best Eval results squad--{eval_dataset.mode} *****")
                         for key, value in eval_result.items():
                             logger.info("  %s = %s", key, value)
                             writer.write("%s = %s\n" % (key, value))
 
-            # # double eval to test whether there is stocahsticasty during evaluation
-            # for eval_dataset in eval_datasets:
-            #     trainer.compute_metrics = build_compute_metrics_fn(eval_dataset.args.task_name)
-            #     # eval_result = trainer.evaluate(eval_dataset=eval_dataset)
-            #     eval_result = trainer.evaluate(eval_dataset=eval_dataset)
-            #
-            #     output_eval_file = os.path.join(
-            #         training_args.output_dir, f"best_eval_results_{eval_dataset.args.task_name}.txt"
-            #     )
-            #     if trainer.is_world_master():
-            #         with open(output_eval_file, "w") as writer:
-            #             logger.info("***** Best Eval results {} *****".format(eval_dataset.args.task_name))
-            #             for key, value in eval_result.items():
-            #                 logger.info("  %s = %s", key, value)
-            #                 writer.write("%s = %s\n" % (key, value))
 
     if training_args.do_predict:
         logging.info("*** Test ***")
@@ -338,11 +312,11 @@ def main():
                 predictions = np.argmax(predictions, axis=1)
 
             output_test_file = os.path.join(
-                training_args.output_dir, f"test_results_{test_dataset.args.task_name}.txt"
+                training_args.output_dir, f"test_results_squad.txt"
             )
             if trainer.is_world_master():
                 with open(output_test_file, "w") as writer:
-                    logger.info("***** Test results {} *****".format(test_dataset.args.task_name))
+                    logger.info("***** Test results SQUAD *****")
                     writer.write("index\tprediction\n")
                     for index, item in enumerate(predictions):
                         if output_mode == "regression":
