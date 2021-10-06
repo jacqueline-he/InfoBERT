@@ -174,21 +174,26 @@ def squad_convert_example_to_features(
     while len(spans) * doc_stride < len(all_doc_tokens):
 
         # Define the side we want to truncate / pad and the text/pair sorting
+
         if tokenizer.padding_side == "right":
             texts = truncated_query
             pairs = span_doc_tokens
+            truncation = "only_second"
         else:
             texts = span_doc_tokens
             pairs = truncated_query
+            truncation = "only_first"
 
         encoded_dict = tokenizer.encode_plus(  # TODO(thom) update this logic
             texts,
             pairs,
+            truncation=truncation,
             padding=padding_strategy,
             max_length=max_seq_length,
             return_overflowing_tokens=True,
             stride=max_seq_length - doc_stride - len(truncated_query) - sequence_pair_added_tokens,
             return_token_type_ids=True,
+            pad_to_max_length=True,
         )
 
         paragraph_len = min(
@@ -290,6 +295,8 @@ def squad_convert_example_to_features(
                 start_position = tok_start_position - doc_start + doc_offset
                 end_position = tok_end_position - doc_start + doc_offset
 
+        # print(span) # TODO debug
+        # print(span['input_ids'])
         features.append(
             SquadFeatures(
                 span["input_ids"],
@@ -309,6 +316,7 @@ def squad_convert_example_to_features(
                 qas_id=example.qas_id,
             )
         )
+        # break # TODO debug 
     return features
 
 
@@ -373,7 +381,7 @@ def squad_convert_examples_to_features(
             max_seq_length=max_seq_length,
             doc_stride=doc_stride,
             max_query_length=max_query_length,
-            padding_strategy=padding_strategy,
+            padding_strategy="max_length",
             is_training=is_training,
         )
         features = list(
