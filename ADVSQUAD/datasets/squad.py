@@ -32,6 +32,7 @@ from processors.squad import SquadFeatures, SquadV1Processor, SquadV2Processor, 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_QUESTION_ANSWERING_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class SquadDataTrainingArguments:
@@ -203,16 +204,51 @@ class SquadDataset(Dataset):
         if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert"]:
             del inputs["token_type_ids"]
 
-        if self.args.model_type in ["xlnet", "xlm"]:
-            inputs.update({"cls_index": cls_index, "p_mask": p_mask})
-            if self.args.version_2_with_negative:
-                inputs.update({"is_impossible": is_impossible})
-            if self.is_language_sensitive:
-                inputs.update({"langs": (torch.ones(input_ids.shape, dtype=torch.int64) * self.args.lang_id)})
-
         if self.mode == Split.train:
             start_positions = torch.tensor(feature.start_position, dtype=torch.long)
             end_positions = torch.tensor(feature.end_position, dtype=torch.long)
             inputs.update({"start_positions": start_positions, "end_positions": end_positions})
 
         return inputs
+
+def collate_squad(features) -> Dict[str, torch.Tensor]:
+    input_ids = []
+    attention_masks = []
+    token_type_ids = []
+
+    start_positions = []
+    end_positions = []
+
+    for feature in features:
+        input_id = torch.tensor(feature['input_ids'], dtype=torch.long)
+        attention_mask = torch.tensor(feature['attention_mask'], dtype=torch.long)
+        token_type_id = torch.tensor(feature['token_type_ids'], dtype=torch.long)
+
+        input_ids.append(input_id)
+        attention_masks.append(attention_mask)
+        token_type_ids.append(token_type_id)
+
+
+        if 'start_positions' in feature:
+            start_position = torch.tensor(feature['start_positions'], dtype=torch.long)
+            end_position = torch.tensor(feature['end_positions'], dtype=torch.long)
+
+            start_positions.append(start_position)
+            end_positions.append(end_position)
+
+    input_ids = torch.stack(input_ids)
+    attention_masks = torch.stack(attention_masks)
+    token_type_ids = torch.stack(token_type_ids)
+
+    if 'start_positions' in feature:
+        start_positions = torch.stack(start_positions)
+        end_positions = torch.stack(end_positions)
+    
+    return {
+        'input_ids': input_ids,
+        'attention_mask': attention_masks,
+        'token_type_ids': token_type_ids,
+        'start_positions': start_positions,
+        'end_positions': end_positions,
+    }
+        

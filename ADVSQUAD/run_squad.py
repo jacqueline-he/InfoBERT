@@ -188,6 +188,7 @@ def main():
     train_dataset = (
         SquadDataset(data_args, tokenizer=tokenizer) if training_args.do_train else None
     )
+
     eval_dataset = (
         SquadDataset(data_args, tokenizer=tokenizer, mode="dev")
         if training_args.do_eval

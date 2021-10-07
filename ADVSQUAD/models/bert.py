@@ -1547,9 +1547,15 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         self.num_labels = config.num_labels
 
         self.bert = BertModel(config)
+        self.dp_mask = None
+        self.dp_prob = config.hidden_dropout_prob
         self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
+
+    def clear_mask(self):
+        self.dp_mask = None
+        self.bert.clear_mask()
 
     @add_start_docstrings_to_callable(BERT_INPUTS_DOCSTRING.format("(batch_size, sequence_length)"))
     def forward(
@@ -1596,8 +1602,17 @@ class BertForQuestionAnswering(BertPreTrainedModel):
             heads.
         """
 
+        # print(f'input_ids: {input_ids}')
+        # print(f'attention_mask: {attention_mask}') # 32 x 128
+        # print(attention_mask.shape)
+        # print(f'token_type_ids: {token_type_ids}') # 32 x 128
+        # print(token_type_ids.shape)
+
+        # print(f'start_positions: {start_positions}') # 32 x 1
+        # print(f'end_positions: {end_positions}') # 32 x 1
+
         outputs = self.bert(
-            input_ids,
+            input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
             position_ids=position_ids,
@@ -1608,6 +1623,12 @@ class BertForQuestionAnswering(BertPreTrainedModel):
         )
 
         sequence_output = outputs[0]
+
+        # modified here
+        if self.training:
+            if self.dp_mask is None:
+                self.dp_mask = torch.zeros_like(sequence_output).bernoulli_(1 - self.dp_prob) / (1 - self.dp_prob)
+            sequence_output = self.dp_mask * sequence_output
 
         logits = self.qa_outputs(sequence_output)
         start_logits, end_logits = logits.split(1, dim=-1)
@@ -1631,5 +1652,5 @@ class BertForQuestionAnswering(BertPreTrainedModel):
             end_loss = loss_fct(end_logits, end_positions)
             total_loss = (start_loss + end_loss) / 2
             outputs = (total_loss,) + outputs
-
-        return outputs  # (loss), start_logits, end_logits, (hidden_states), (attentions)
+        # print(f'tuple size: {len(outputs)}') # 5
+        return outputs # (total_loss), start_logits, end_logits, (hidden_states), (attentions)

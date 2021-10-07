@@ -25,6 +25,8 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR, EvalPrediction, PredictionOutput, TrainOutput
 from advtraining_args import TrainingArguments, is_tpu_available
 
+from datasets.squad import collate_squad
+
 from MI_estimators import CLUB, InfoNCE, CLUBv2
 
 try:
@@ -248,7 +250,7 @@ class Trainer:
             self.train_dataset,
             batch_size=self.args.train_batch_size,
             sampler=train_sampler,
-            collate_fn=self.data_collator.collate_batch,
+            collate_fn=collate_squad,
         )
 
         return data_loader
@@ -272,7 +274,7 @@ class Trainer:
             eval_dataset,
             sampler=sampler,
             batch_size=self.args.eval_batch_size,
-            collate_fn=self.data_collator.collate_batch,
+            collate_fn=collate_squad, 
         )
 
         return data_loader
@@ -292,7 +294,7 @@ class Trainer:
             test_dataset,
             sampler=sampler,
             batch_size=self.args.eval_batch_size,
-            collate_fn=self.data_collator.collate_batch,
+            collate_fn=collate_squad,
         )
 
         return data_loader
@@ -508,12 +510,12 @@ class Trainer:
                 epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=not self.is_local_master())
 
             for step, inputs in enumerate(epoch_iterator):
-
                 # Skip past any already trained steps if resuming training
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
 
+                # print(f'inputs: {inputs}')
                 full_loss, loss_dict = self._adv_training_step(model, inputs, optimizer)
                 tr_loss += full_loss
 
@@ -840,9 +842,13 @@ class Trainer:
         return lengths.detach().cpu().numpy()
 
     def _train_mi_upper_estimator(self, outputs, inputs=None):
-        hidden_states = outputs[2]  # need to set config.output_hidden = True
+        # pos. 3 instead of 2 for BERTforqa
+        hidden_states = outputs[3]  # need to set config.output_hidden = True
+        # hidden_states is tuple of length 13
+        # print(f'hidden states size: {hidden_states[-1].shape}') # 32 x 128 x 768
         last_hidden, embedding_layer = hidden_states[-1], hidden_states[0]  # embedding layer: batch x seq_len x 768
-        sentence_embedding = last_hidden[:, 0]  # batch x 768
+
+        sentence_embedding = last_hidden[:, 0]  # batch x 768   
         if self.mi_upper_estimator.version == 0:
             embedding_layer = torch.reshape(embedding_layer, [embedding_layer.shape[0], -1])
             return self.mi_upper_estimator.update(embedding_layer, sentence_embedding)
@@ -859,7 +865,8 @@ class Trainer:
             return self.mi_upper_estimator.update(embedding_layer, embeddings)
 
     def _get_local_robust_feature_regularizer(self, outputs, local_robust_features):
-        hidden_states = outputs[2]  # need to set config.output_hidden = True
+        # for bertforqa, change to 3 instead of 2
+        hidden_states = outputs[3]  # need to set config.output_hidden = True
         last_hidden, embedding_layer = hidden_states[-1], hidden_states[0]  # embedding layer: batch x seq_len x 768
         sentence_embeddings = last_hidden[:, 0]  # batch x 768
         local_embeddings = []
@@ -879,7 +886,7 @@ class Trainer:
         return -torch.stack(lower_bounds).mean()
 
     def _eval_mi_upper_estimator(self, outputs, inputs=None):
-        hidden_states = outputs[2]  # need to set config.output_hidden = True
+        hidden_states = outputs[3]  # need to set config.output_hidden = True
         last_hidden, embedding_layer = hidden_states[-1], hidden_states[0]  # embedding layer: batch x seq_len x 768
         sentence_embedding = last_hidden[:, 0]  # batch x 768
         if self.mi_upper_estimator.version == 0:
@@ -903,7 +910,7 @@ class Trainer:
         model.train()
         for k, v in inputs.items():
             inputs[k] = v.to(self.args.device)
-
+  
         outputs = model(**inputs)
 
         loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
@@ -1004,7 +1011,6 @@ class Trainer:
         embeds_init = embeddings(input_ids)
 
         if self.args.adv_init_mag > 0:
-
             input_mask = inputs['attention_mask'].to(embeds_init)
             input_lengths = torch.sum(input_mask, 1)
             # check the shape of the mask here..
@@ -1029,6 +1035,7 @@ class Trainer:
             inputs['inputs_embeds'] = delta + embeds_init
 
             outputs = model(**inputs)
+            # (loss, start, end, hidden, attention) = outputs
             loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
             # (1) backward
             if self.args.n_gpu > 1:
