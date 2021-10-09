@@ -30,7 +30,7 @@ from advtraining_args import AdvTrainingArguments
 import transformers
 from trainer_qa import QuestionAnsweringTrainer
 from models.modeling_auto import AutoModelForQuestionAnswering
-from transformers import BertForQuestionAnswering
+
 from transformers import (
     AutoConfig,
     # AutoModelForQuestionAnswering,
@@ -53,7 +53,7 @@ gc.collect()
 
 torch.cuda.empty_cache()
 
-os.environ['CUDA_VISIBLE_DEVICES']='0'
+os.environ['CUDA_VISIBLE_DEVICES']='0, 1'
 
 
 logger = logging.getLogger(__name__)
@@ -251,7 +251,7 @@ def main():
         cache_dir=model_args.cache_dir,
         use_fast=True,
     )
-    model = BertForQuestionAnswering.from_pretrained(
+    model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model_name_or_path,
         config=config,
         cache_dir=model_args.cache_dir,

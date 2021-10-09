@@ -9,5 +9,5 @@ python run_qa.py \
   --learning_rate 3e-5 \
   --max_seq_length 384 \
   --doc_stride 128 \
-  --output_dir  ./results-2 \
-  --max_steps 10000 
+  --output_dir  ./results-3 \
+  --max_steps 1000

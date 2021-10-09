@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NUM_GPU=2
+NUM_GPU=1
 
 python -m torch.distributed.launch --nproc_per_node=$NUM_GPU run_qa.py \
     --model_name_or_path bert-base-uncased \
