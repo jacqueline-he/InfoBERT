@@ -30,7 +30,7 @@ from advtraining_args import AdvTrainingArguments
 import transformers
 from trainer_qa import QuestionAnsweringTrainer
 from models.modeling_auto import AutoModelForQuestionAnswering
-from models.bert import BertForQuestionAnswering
+from transformers import BertForQuestionAnswering
 from transformers import (
     AutoConfig,
     # AutoModelForQuestionAnswering,
@@ -53,7 +53,7 @@ gc.collect()
 
 torch.cuda.empty_cache()
 
-os.environ['CUDA_VISIBLE_DEVICES']='0,1'
+os.environ['CUDA_VISIBLE_DEVICES']='0'
 
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ class ModelArguments:
         default=None, metadata={"help": "the path to load pretrained models"}
     )
     beta: float = field(
-        default=0, metadata={"help": "the regularization term"}
+        default=5e-5, metadata={"help": "the regularization term"}
     )
     version: float = field(
         default=-1, metadata={"help": "version of MI estimator"}

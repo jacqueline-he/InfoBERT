@@ -61,10 +61,10 @@ class AdvTrainingArguments(TrainingArguments):
     )
 
     per_device_train_batch_size: int = field(
-        default=1, metadata={"help": "Batch size per GPU/TPU core/CPU for training."}
+        default=16, metadata={"help": "Batch size per GPU/TPU core/CPU for training."}
     )
     per_device_eval_batch_size: int = field(
-        default=1, metadata={"help": "Batch size per GPU/TPU core/CPU for evaluation."}
+        default=16, metadata={"help": "Batch size per GPU/TPU core/CPU for evaluation."}
     )
 
     per_gpu_train_batch_size: Optional[int] = field(
@@ -101,7 +101,7 @@ class AdvTrainingArguments(TrainingArguments):
 
     logging_dir: Optional[str] = field(default=None, metadata={"help": "Tensorboard log dir."})
     logging_first_step: bool = field(default=True, metadata={"help": "Log and eval the first global_step"})
-    logging_steps: int = field(default=5000, metadata={"help": "Log every X updates steps."})
+    logging_steps: int = field(default=10, metadata={"help": "Log every X updates steps."})
     save_steps: int = field(default=5000, metadata={"help": "Save checkpoint every X updates steps."})
     save_total_limit: Optional[int] = field(
         default=None,
@@ -136,7 +136,7 @@ class AdvTrainingArguments(TrainingArguments):
     tpu_metrics_debug: bool = field(default=False, metadata={"help": "TPU: Whether to print debug metrics"})
 
     # adv args
-    alpha: Optional[float] = field(default=0)
+    alpha: Optional[float] = field(default=5e-3)
     adv_lr: Optional[float] = field(default=0)
     adv_steps: Optional[int] = field(default=1, metadata={"help": "should be at least 1"})
     adv_init_mag: Optional[float] = field(default=0)
@@ -144,8 +144,8 @@ class AdvTrainingArguments(TrainingArguments):
     adv_max_norm: Optional[float] = field(default=0, metadata={"help": "set to 0 to be unlimited"})
     hidden_dropout_prob: Optional[float] = field(default=0.1)
     attention_probs_dropout_prob: Optional[float] = field(default=0)
-    cl: Optional[float] = field(default=0.5)
-    ch: Optional[float] = field(default=0.9)
+    cl: Optional[float] = field(default=0.75)
+    ch: Optional[float] = field(default=0.95)
 
     @property
     def train_batch_size(self) -> int:
