@@ -30,10 +30,12 @@ if is_torch_tpu_available():
 
 
 class QuestionAnsweringTrainer(Trainer):
-    def __init__(self, *args, eval_examples=None, post_process_function=None, **kwargs):
+    def __init__(self, *args, eval_examples=None, post_process_function=None, mi_estimator = None, mi_upper_estimator=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.eval_examples = eval_examples
         self.post_process_function = post_process_function
+        self.mi_estimator = mi_estimator
+        self.mi_upper_estimator = mi_upper_estimator
         self.eval_hist = []
 
     def evaluate(self, eval_dataset=None, eval_examples=None, ignore_keys=None):

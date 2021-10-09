@@ -221,9 +221,17 @@ def main():
     #
     # In distributed training, the load_dataset function guarantee that only one local process can concurrently
     # download the dataset.
+    validation_dataset = None
+    adv_datasets = None
     if data_args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
-        datasets = load_dataset(data_args.dataset_name, data_args.dataset_config_name, cache_dir='/n/fs/nlp-jh70')
+        if data_args.dataset_name == 'squad_adversarial':
+            adv_datasets = load_dataset(data_args.dataset_name, 'AddSent', cache_dir='/n/fs/scratch')
+            validation_dataset = adv_datasets["validation"]
+        datasets = load_dataset('squad', data_args.dataset_config_name, cache_dir='/n/fs/nlp-jh70')
+        train_dataset = datasets["train"]
+        if validation_dataset is None:
+            validation_dataset = datasets["validation"]
     else:
         data_files = {}
         if data_args.train_file is not None:
@@ -255,6 +263,7 @@ def main():
         model_args.model_name_or_path,
         config=config,
         cache_dir=model_args.cache_dir,
+        from_tf=bool(".ckpt" in model_args.model_name_or_path),
     )
 
     # Tokenizer check: this script requires a fast tokenizer.
@@ -301,7 +310,7 @@ def main():
     if training_args.do_train:
         column_names = datasets["train"].column_names
     else:
-        column_names = datasets["validation"].column_names
+        column_names = adv_datasets["validation"].column_names
     question_column_name = "question" if "question" in column_names else column_names[0]
     context_column_name = "context" if "context" in column_names else column_names[1]
     answer_column_name = "answers" if "answers" in column_names else column_names[2]
@@ -445,7 +454,7 @@ def main():
         return tokenized_examples
 
     if training_args.do_eval:
-        validation_dataset = datasets["validation"].map(
+        validation_dataset = adv_datasets["validation"].map(
             prepare_validation_features,
             batched=True,
             num_proc=data_args.preprocessing_num_workers,
@@ -477,7 +486,7 @@ def main():
             ]
         else:
             formatted_predictions = [{"id": k, "prediction_text": v} for k, v in predictions.items()]
-        references = [{"id": ex["id"], "answers": ex[answer_column_name]} for ex in datasets["validation"]]
+        references = [{"id": ex["id"], "answers": ex[answer_column_name]} for ex in adv_datasets["validation"]]
         return EvalPrediction(predictions=formatted_predictions, label_ids=references)
 
     # TODO: Once the fix lands in a Datasets release, remove the _local here and the squad_v2_local folder.
@@ -493,7 +502,7 @@ def main():
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
         eval_dataset=validation_dataset if training_args.do_eval else None,
-        eval_examples=datasets["validation"] if training_args.do_eval else None,
+        eval_examples=adv_datasets["validation"] if training_args.do_eval else None,
         tokenizer=tokenizer,
         data_collator=data_collator,
         post_process_function=post_processing_function,
