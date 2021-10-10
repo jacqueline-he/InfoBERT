@@ -17,7 +17,7 @@ pip install -r requirements.txt
 To run ANLI and TextFooler experiments, refer to [README](https://github.com/AI-secure/InfoBERT/tree/master/ANLI) in the `ANLI` directory.
 
 ### SQuAD
-We will upload the code for the SQuAD experiments soon. 
+I will update the numbers / instructions later today - currently very tired :(  
 
 ## Citation
 ```
