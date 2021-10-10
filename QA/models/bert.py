@@ -1065,14 +1065,10 @@ class BertModel(BertPreTrainedModel):
         if not return_dict:
             return (sequence_output, pooled_output) + encoder_outputs[1:]
 
-        return BaseModelOutputWithPoolingAndCrossAttentions(
-            last_hidden_state=sequence_output,
-            pooler_output=pooled_output,
-            past_key_values=encoder_outputs.past_key_values,
-            hidden_states=encoder_outputs.hidden_states,
-            attentions=encoder_outputs.attentions,
-            cross_attentions=encoder_outputs.cross_attentions,
-        )
+        outputs = (sequence_output, pooled_output,) + encoder_outputs[
+            1:
+        ]  # add hidden_states and attentions if they are here
+        return outputs  # sequence_output, pooled_output, (hidden_states), (attentions)
 
 
 @add_start_docstrings(

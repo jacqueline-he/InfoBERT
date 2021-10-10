@@ -1063,9 +1063,6 @@ class RobertaForQuestionAnswering(BertPreTrainedModel):
             position_ids=position_ids,
             head_mask=head_mask,
             inputs_embeds=inputs_embeds,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
         )
 
         sequence_output = outputs[0]
@@ -1076,6 +1073,8 @@ class RobertaForQuestionAnswering(BertPreTrainedModel):
         end_logits = end_logits.squeeze(-1).contiguous()
 
         total_loss = None
+        outputs = (start_logits, end_logits) + outputs[2:]
+        
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, split add a dimension
             if len(start_positions.size()) > 1:
@@ -1091,16 +1090,11 @@ class RobertaForQuestionAnswering(BertPreTrainedModel):
             start_loss = loss_fct(start_logits, start_positions)
             end_loss = loss_fct(end_logits, end_positions)
             total_loss = (start_loss + end_loss) / 2
-
-        if not return_dict:
-            output = (start_logits, end_logits) + outputs[2:]
-            return ((total_loss,) + output) if total_loss is not None else output
-
+            outputs = (total_loss,) + outputs
         return outputs
 
     def clear_mask(self):
         self.roberta.clear_mask()
-        self.classifier.clear_mask()
 
 
 def create_position_ids_from_input_ids(input_ids, padding_idx, past_key_values_length=0):

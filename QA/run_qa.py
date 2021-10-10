@@ -31,6 +31,7 @@ import transformers
 from trainer_qa import QuestionAnsweringTrainer
 from models.modeling_auto import AutoModelForQuestionAnswering
 from models.bert import BertForQuestionAnswering
+from models.roberta import RobertaForQuestionAnswering
 
 from transformers import (
     AutoConfig,
@@ -227,11 +228,12 @@ def main():
     if data_args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
         if data_args.dataset_name == 'squad_adversarial':
-            adv_datasets = load_dataset(data_args.dataset_name, 'AddSent', cache_dir='/n/fs/scratch/jh70')
+            adv_datasets = load_dataset(data_args.dataset_name, 'AddOneSent', cache_dir='/n/fs/scratch/jh70')
             validation_dataset = adv_datasets["validation"]
         datasets = load_dataset('squad', data_args.dataset_config_name, cache_dir='/n/fs/scratch/jh70')
         train_dataset = datasets["train"]
         if validation_dataset is None:
+            adv_datasets = load_dataset('squad', data_args.dataset_config_name, cache_dir='/n/fs/scratch/jh70')
             validation_dataset = datasets["validation"]
     else:
         data_files = {}
@@ -260,7 +262,7 @@ def main():
         cache_dir=model_args.cache_dir,
         use_fast=True,
     )
-    model = BertForQuestionAnswering.from_pretrained(
+    model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model_name_or_path,
         config=config,
         cache_dir='/n/fs/scratch/nlp-jh70',

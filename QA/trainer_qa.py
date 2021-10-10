@@ -1121,8 +1121,7 @@ class QuestionAnsweringTrainer(Trainer):
                     step_eval_loss = outputs[0].tolist()
                     eval_losses += [step_eval_loss.mean().item()]
                 else:
-                    # print(f'outputs: {outputs}')
-                    start_logits, end_logits = outputs
+                    (start_logits, end_logits) = outputs
                     all_start_logits.append(start_logits)
                     all_end_logits.append(end_logits)
 
