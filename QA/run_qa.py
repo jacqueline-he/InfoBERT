@@ -30,6 +30,7 @@ from advtraining_args import AdvTrainingArguments
 import transformers
 from trainer_qa import QuestionAnsweringTrainer
 from models.modeling_auto import AutoModelForQuestionAnswering
+from models.bert import BertForQuestionAnswering
 
 from transformers import (
     AutoConfig,
@@ -53,7 +54,7 @@ gc.collect()
 
 torch.cuda.empty_cache()
 
-os.environ['CUDA_VISIBLE_DEVICES']='0, 1'
+os.environ['CUDA_VISIBLE_DEVICES']='0, 1, 2, 3,4,5,6,7'
 
 
 logger = logging.getLogger(__name__)
@@ -226,7 +227,7 @@ def main():
     if data_args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
         if data_args.dataset_name == 'squad_adversarial':
-            adv_datasets = load_dataset(data_args.dataset_name, 'AddSent', cache_dir='/n/fs/scratch')
+            adv_datasets = load_dataset(data_args.dataset_name, 'AddOneSent', cache_dir='/n/fs/scratch')
             validation_dataset = adv_datasets["validation"]
         datasets = load_dataset('squad', data_args.dataset_config_name, cache_dir='/n/fs/nlp-jh70')
         train_dataset = datasets["train"]
@@ -259,10 +260,10 @@ def main():
         cache_dir=model_args.cache_dir,
         use_fast=True,
     )
-    model = AutoModelForQuestionAnswering.from_pretrained(
+    model = BertForQuestionAnswering.from_pretrained(
         model_args.model_name_or_path,
         config=config,
-        cache_dir=model_args.cache_dir,
+        cache_dir='/n/fs/nlp-jh70',
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
     )
 
@@ -507,8 +508,8 @@ def main():
         data_collator=data_collator,
         post_process_function=post_processing_function,
         compute_metrics=compute_metrics,
-        # mi_estimator=mi_estimator, # InfoBERT stuff
-        # mi_upper_estimator=mi_upper_estimator,
+        mi_estimator=mi_estimator, # InfoBERT stuff
+        mi_upper_estimator=mi_upper_estimator,
     )
 
     # Training

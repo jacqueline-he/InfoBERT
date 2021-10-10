@@ -5,9 +5,9 @@ python run_qa.py \
   --dataset_name squad_adversarial \
   --do_train \
   --do_eval \
-  --per_device_train_batch_size 2 \
+  --per_device_train_batch_size 4 \
   --learning_rate 3e-5 \
   --max_seq_length 384 \
   --doc_stride 128 \
   --output_dir  ./adv-results \
-  --max_steps 1000
+  --num_train_epochs 1
