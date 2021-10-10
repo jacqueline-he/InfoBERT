@@ -76,7 +76,7 @@ class ModelArguments:
         default=None, metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"}
     )
     cache_dir: Optional[str] = field(
-        default='/n/fs/nlp-jh70',
+        default='/n/fs/scratch/nlp-jh70',
         metadata={"help": "Path to directory to store the pretrained models downloaded from huggingface.co"},
     )
     load: Optional[str] = field(
@@ -227,9 +227,9 @@ def main():
     if data_args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
         if data_args.dataset_name == 'squad_adversarial':
-            adv_datasets = load_dataset(data_args.dataset_name, 'AddOneSent', cache_dir='/n/fs/scratch')
+            adv_datasets = load_dataset(data_args.dataset_name, 'AddSent', cache_dir='/n/fs/scratch/jh70')
             validation_dataset = adv_datasets["validation"]
-        datasets = load_dataset('squad', data_args.dataset_config_name, cache_dir='/n/fs/nlp-jh70')
+        datasets = load_dataset('squad', data_args.dataset_config_name, cache_dir='/n/fs/scratch/jh70')
         train_dataset = datasets["train"]
         if validation_dataset is None:
             validation_dataset = datasets["validation"]
@@ -240,7 +240,7 @@ def main():
         if data_args.validation_file is not None:
             data_files["validation"] = data_args.validation_file
         extension = data_args.train_file.split(".")[-1]
-        datasets = load_dataset(extension, data_files=data_files, field="data", cache_dir='/n/fs/nlp-jh70')
+        datasets = load_dataset(extension, data_files=data_files, field="data", cache_dir='/n/fs/scratch/nlp-jh70')
     # See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
 
@@ -263,7 +263,7 @@ def main():
     model = BertForQuestionAnswering.from_pretrained(
         model_args.model_name_or_path,
         config=config,
-        cache_dir='/n/fs/nlp-jh70',
+        cache_dir='/n/fs/scratch/nlp-jh70',
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
     )
 
@@ -492,7 +492,7 @@ def main():
 
     # TODO: Once the fix lands in a Datasets release, remove the _local here and the squad_v2_local folder.
     current_dir = os.path.sep.join(os.path.join(__file__).split(os.path.sep)[:-1])
-    metric = load_metric(os.path.join(current_dir, "squad_v2_local") if data_args.version_2_with_negative else "squad")
+    metric = load_metric("squad", keep_in_memory=True)
 
     def compute_metrics(p: EvalPrediction):
         return metric.compute(predictions=p.predictions, references=p.label_ids)

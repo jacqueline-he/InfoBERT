@@ -101,7 +101,7 @@ from transformers import (
 from transformers import MarianMTModel
 from transformers import OpenAIGPTLMHeadModel, OpenAIGPTModel
 from transformers import ReformerModel, ReformerModelWithLMHead
-from transformers import (
+from models.roberta import (
     RobertaForMaskedLM,
     RobertaForMultipleChoice,
     RobertaForQuestionAnswering,
