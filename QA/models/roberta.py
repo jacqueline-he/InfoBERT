@@ -1063,6 +1063,7 @@ class RobertaForQuestionAnswering(BertPreTrainedModel):
             position_ids=position_ids,
             head_mask=head_mask,
             inputs_embeds=inputs_embeds,
+            output_hidden_states=True,
         )
 
         sequence_output = outputs[0]

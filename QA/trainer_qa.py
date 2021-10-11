@@ -578,7 +578,7 @@ class QuestionAnsweringTrainer(Trainer):
 
     def _train_mi_upper_estimator(self, outputs, inputs=None):
         # pos. 3 instead of 2 for BERTforqa
-        hidden_states = outputs[3]  # need to set config.output_hidden = True
+        hidden_states = outputs[-1]  # need to set config.output_hidden = True
         # hidden_states is tuple of length 13
         # print(f'hidden states size: {hidden_states[-1].shape}') # 32 x 128 x 768
         last_hidden, embedding_layer = hidden_states[-1], hidden_states[0]  # embedding layer: batch x seq_len x 768
@@ -1121,7 +1121,9 @@ class QuestionAnsweringTrainer(Trainer):
                     step_eval_loss = outputs[0].tolist()
                     eval_losses += [step_eval_loss.mean().item()]
                 else:
-                    (start_logits, end_logits) = outputs
+                    assert(len(outputs) == 3)
+                    start_logits, end_logits, _ = outputs
+                    
                     all_start_logits.append(start_logits)
                     all_end_logits.append(end_logits)
 

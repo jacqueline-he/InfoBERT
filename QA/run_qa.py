@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from datasets import load_dataset, load_metric
-
+from MI_estimators import CLUB, CLUBv2, InfoNCE
 from advtraining_args import AdvTrainingArguments
 
 import transformers
@@ -99,6 +99,9 @@ class DataTrainingArguments:
 
     dataset_name: Optional[str] = field(
         default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}
+    )
+    attack_name: Optional[str] = field(
+        default='AddSent', metadata={"help": "Attack name"}
     )
     dataset_config_name: Optional[str] = field(
         default=None, metadata={"help": "The configuration name of the dataset to use (via the datasets library)."}
@@ -228,7 +231,7 @@ def main():
     if data_args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
         if data_args.dataset_name == 'squad_adversarial':
-            adv_datasets = load_dataset(data_args.dataset_name, 'AddOneSent', cache_dir='/n/fs/scratch/jh70')
+            adv_datasets = load_dataset(data_args.dataset_name, data_args.attack_name, cache_dir='/n/fs/scratch/jh70')
             validation_dataset = adv_datasets["validation"]
         datasets = load_dataset('squad', data_args.dataset_config_name, cache_dir='/n/fs/scratch/jh70')
         train_dataset = datasets["train"]
