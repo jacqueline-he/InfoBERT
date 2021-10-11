@@ -102,7 +102,7 @@ class AdvTrainingArguments(TrainingArguments):
     logging_dir: Optional[str] = field(default=None, metadata={"help": "Tensorboard log dir."})
     logging_first_step: bool = field(default=True, metadata={"help": "Log and eval the first global_step"})
     logging_steps: int = field(default=50, metadata={"help": "Log every X updates steps."})
-    save_steps: int = field(default=50000, metadata={"help": "Save checkpoint every X updates steps."})
+    save_steps: int = field(default=50, metadata={"help": "Save checkpoint every X updates steps."})
     save_total_limit: Optional[int] = field(
         default=None,
         metadata={
@@ -137,7 +137,7 @@ class AdvTrainingArguments(TrainingArguments):
 
     # adv args
     alpha: Optional[float] = field(default=5e-3)
-    adv_lr: Optional[float] = field(default=0)
+    adv_lr: Optional[float] = field(default=4e-2)
     adv_steps: Optional[int] = field(default=1, metadata={"help": "should be at least 1"})
     adv_init_mag: Optional[float] = field(default=0)
     norm_type: Optional[str] = field(default="l2", metadata={"help": 'choices "l2", or "linf"'})
