@@ -55,9 +55,6 @@ gc.collect()
 
 torch.cuda.empty_cache()
 
-os.environ['CUDA_VISIBLE_DEVICES']='0, 1, 2, 3,4,5,6,7'
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -233,7 +230,7 @@ def main():
         if data_args.dataset_name == 'squad_adversarial':
             adv_datasets = load_dataset(data_args.dataset_name, data_args.attack_name, cache_dir='/n/fs/scratch/jh70')
             validation_dataset = adv_datasets["validation"]
-        datasets = load_dataset('squad', data_args.dataset_config_name, cache_dir='/n/fs/scratch/jh70')
+        datasets = load_dataset('squad', cache_dir='/n/fs/scratch/jh70')
         train_dataset = datasets["train"]
         if validation_dataset is None:
             adv_datasets = load_dataset('squad', data_args.dataset_config_name, cache_dir='/n/fs/scratch/jh70')
@@ -257,6 +254,7 @@ def main():
     config = AutoConfig.from_pretrained(
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
+        finetuning_task='squad',
         attention_probs_dropout_prob=training_args.attention_probs_dropout_prob,
         hidden_dropout_prob=training_args.hidden_dropout_prob
     )

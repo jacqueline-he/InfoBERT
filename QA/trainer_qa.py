@@ -189,9 +189,8 @@ class QuestionAnsweringTrainer(Trainer):
             model = torch.nn.DataParallel(model)
             if self.mi_estimator:
                 self.mi_estimator = torch.nn.DataParallel(self.mi_estimator)
-
         # Distributed training (should be after apex fp16 initialization)
-        if self.args.local_rank != -1:
+        elif self.args.local_rank != -1:
             model = torch.nn.parallel.DistributedDataParallel(
                 model,
                 device_ids=[self.args.local_rank],
@@ -206,6 +205,10 @@ class QuestionAnsweringTrainer(Trainer):
                     find_unused_parameters=True,
                 )
 
+        if hasattr(model, "module"):
+            assert model.module is self.model
+        else:
+            assert model is self.model
 
         # Train!
         if is_tpu_available():
@@ -332,14 +335,14 @@ class QuestionAnsweringTrainer(Trainer):
 
                         self.save_model(output_dir)
 
-                        if self.is_world_master():
+                        if self.is_world_process_zero():
                             self._rotate_checkpoints()
 
                         if is_tpu_available():
                             xm.rendezvous("saving_optimizer_states")
                             xm.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                             xm.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
-                        elif self.is_world_master():
+                        elif self.is_world_process_zero():
                             torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                             torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
 
@@ -381,7 +384,6 @@ class QuestionAnsweringTrainer(Trainer):
         # hidden_states is tuple of length 13
         # print(f'hidden states size: {hidden_states[-1].shape}') # 32 x 128 x 768
         last_hidden, embedding_layer = hidden_states[-1], hidden_states[0]  # embedding layer: batch x seq_len x 768
-
         sentence_embedding = last_hidden[:, 0]  # batch x 768   
         if self.mi_upper_estimator.version == 0:
             embedding_layer = torch.reshape(embedding_layer, [embedding_layer.shape[0], -1])
@@ -402,21 +404,26 @@ class QuestionAnsweringTrainer(Trainer):
         # for bertforqa, change to 3 instead of 2
         hidden_states = outputs[3]  # need to set config.output_hidden = True
         last_hidden, embedding_layer = hidden_states[-1], hidden_states[0]  # embedding layer: batch x seq_len x 768
-        sentence_embeddings = last_hidden[:, 0]  # batch x 768
+        sentence_embeddings = last_hidden[:, 0]  # batch x 768, 16 x 768
+        
         local_embeddings = []
         global_embeddings = []
         for i, local_robust_feature in enumerate(local_robust_features):
             for local in local_robust_feature:
                 local_embeddings.append(embedding_layer[i, local])
                 global_embeddings.append(sentence_embeddings[i])
-
-        lower_bounds = []
+        assert(len(local_embeddings) == len(global_embeddings))
+        lower_bounds = [] # array
         from sklearn.utils import shuffle
         local_embeddings, global_embeddings = shuffle(local_embeddings, global_embeddings, random_state=self.args.seed)
         for i in range(0, len(local_embeddings), self.args.train_batch_size):
             local_batch = torch.stack(local_embeddings[i: i + self.args.train_batch_size])
             global_batch = torch.stack(global_embeddings[i: i + self.args.train_batch_size])
-            lower_bounds += self.mi_estimator(local_batch, global_batch),
+            assert(local_batch.shape == global_batch.shape)
+            res = self.mi_estimator(local_batch, global_batch),
+            (sample_size, dim) = local_batch.shape
+            if sample_size != 1:
+                lower_bounds += res
         return -torch.stack(lower_bounds).mean()
 
     def _eval_mi_upper_estimator(self, outputs, inputs=None):

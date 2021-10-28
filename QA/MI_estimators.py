@@ -203,7 +203,7 @@ class InfoNCE(nn.Module):
 
         lower_bound = T0.mean() - (
                     T1.logsumexp(dim=1).mean() - np.log(sample_size))  # torch.log(T1.exp().mean(dim = 1)).mean()
-
+        # print(f'lower_bound: {lower_bound}')
         # compute the negative loss (maximise loss == minimise -loss)
         return lower_bound
 
